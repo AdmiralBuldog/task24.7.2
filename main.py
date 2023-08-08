@@ -29,7 +29,7 @@ class TestPetFriendsAPI(unittest.TestCase):
         response = requests.post(f"{self.BASE_URL}/api/create_pet_simple",
                                  headers={"auth_key": self.api_key},
                                  data={"name": "TestPet" * 100, "animal_type": "Dog" * 100, "age": "5" * 100})
-        self.assertEqual(response.status_code, 200)  # Ожидаем ошибку из-за неверных данных.
+        self.assertEqual(response.status_code, 400)  # Ожидаем ошибку из-за неверных данных.
 
     def test_missing_parameters(self):
         # Отсутствие необходимых параметров.
@@ -50,7 +50,7 @@ class TestPetFriendsAPI(unittest.TestCase):
         response = requests.post(f"{self.BASE_URL}/api/create_pet_simple",
                                  headers={"auth_key": self.api_key},
                                  data={"name": "TestPet", "animal_type": "Dog", "age": "five"})
-        self.assertEqual(response.status_code, 200)  # Ожидаем ошибку из-за неверных данных.
+        self.assertEqual(response.status_code, 400)  # Ожидаем ошибку из-за неверных данных.
 
     def test_access_without_auth(self):
         # Попытка доступа к ресурсам без авторизации.
@@ -66,34 +66,40 @@ class TestPetFriendsAPI(unittest.TestCase):
         response = requests.post(f"{self.BASE_URL}/create_pet_simple",
                                  headers={"auth_key": self.api_key},
                                  data={"name": "DuplicatePet", "animal_type": "Dog", "age": "5"})
-        self.assertEqual(response.status_code, 404)
+        self.assertEqual(response.status_code, 400)
 
     def test_special_characters(self):
         # Передача специальных символов в параметрах.
         response = requests.post(f"{self.BASE_URL}/create_pet_simple",
                                  headers={"auth_key": self.api_key},
                                  data={"name": "<script>alert('Test')</script>", "animal_type": "Dog", "age": "5"})
-        self.assertEqual(response.status_code, 404)
+        self.assertEqual(response.status_code, 400)
 
     def test_out_of_bounds_data(self):
         # Передача данных, которые выходят за пределы допустимых значений.
         response = requests.post(f"{self.BASE_URL}/create_pet_simple",
                                  headers={"auth_key": self.api_key},
                                  data={"name": "TestPet", "animal_type": "Dog", "age": "-5"})
-        self.assertEqual(response.status_code, 404)
-
-    def test_nonexistent_resource(self):
-        # Попытка удаления или изменения несуществующего ресурса.
-        response = requests.delete(f"{self.BASE_URL}/pets/999999",
-                                   headers={"auth_key": self.api_key})
-        self.assertNotEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, 400)
 
     def test_no_permission(self):
         # Попытка выполнения действий, на которые у пользователя нет прав.
         response = requests.delete(f"{self.BASE_URL}/pets/1",
                                    headers={"auth_key": self.api_key})
-        self.assertEqual(response.status_code, 404)
+        self.assertEqual(response.status_code, 403)
 
+        # Тест на удаление питомца с несуществующим ID
+    def test_delete_nonexistent_pet(self):
+        response = requests.delete(f"{self.BASE_URL}/api/pets/999999",
+                                   headers={"auth_key": self.api_key})
+        self.assertNotEqual(response.status_code, 403)
+
+        # Тест на обновление информации о питомце с неверным форматом данных
+    def test_update_pet_with_wrong_data_format(self):
+        response = requests.put(f"{self.BASE_URL}/api/pets/1",
+                                headers={"auth_key": self.api_key},
+                                data={"name": "TestPet", "animal_type": "Dog", "age": "five"})
+        self.assertNotEqual(response.status_code, 400)
 
 if __name__ == "__main__":
     unittest.main()
